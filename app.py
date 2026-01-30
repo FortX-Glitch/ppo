@@ -10,7 +10,7 @@ CORS(app)
 
 @app.route('/')
 def home():
-    return "Serveur Operationnel", 200
+    return "Serveur TubeHub : Operationnel", 200
 
 @app.route('/download', methods=['POST'])
 def download_video():
@@ -24,29 +24,29 @@ def download_video():
         unique_id = str(uuid.uuid4())[:8]
         
         ydl_opts = {
-            # Format 18 = MP4 360p (Vidéo + Audio déjà ensemble, très léger)
-            'format': '18/best',
+            'format': 'best[ext=mp4]/best',
             'outtmpl': os.path.join(tmpdir, f'tubehub_{unique_id}_%(title)s.%(ext)s'),
             'noplaylist': True,
             'nocheckcertificate': True,
+            # --- CORRECTIF CLOUDFLARE ICI ---
+            'impersonate': 'chrome',
+            'extractor_args': {
+                'generic': ['impersonate'],
+                'youtube': ['player_client=android,web'] # Optionnel pour aider YouTube
+            },
+            # -------------------------------
             'quiet': False,
-            # On limite la vitesse pour ne pas faire crash le petit serveur Render
-            'ratelimit': 1000000, 
-            'no_warnings': True,
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # On essaye d'extraire et télécharger
             info = ydl.extract_info(video_url, download=True)
             file_path = ydl.prepare_filename(info)
         
-        return send_file(file_path, as_attachment=True)
+        return send_file(file_path, as_attachment=True, download_name=os.path.basename(file_path))
     
     except Exception as e:
-        # On force l'affichage de l'erreur dans la console Render
-        print(f"--- ERREUR SERVEUR ---")
-        print(str(e))
-        print(f"-----------------------")
+        # On affiche l'erreur complète pour voir si Cloudflare bloque encore
+        print(f"ERREUR CLOUDFLARE : {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
