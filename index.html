@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TUBEHUB | MP4 Downloader</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        :root { --primary: #ff0000; --bg: #0f0f0f; --card: #1e1e1e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .container { background: var(--card); padding: 2.5rem; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.7); width: 90%; max-width: 450px; text-align: center; border: 1px solid #333; }
+        h1 { color: var(--primary); font-size: 2.5rem; margin-bottom: 0.5rem; }
+        p { color: #aaa; margin-bottom: 2rem; font-size: 0.9rem; }
+        input[type="text"] { width: 100%; padding: 15px; border-radius: 8px; border: 1px solid #444; background: #2a2a2a; color: white; margin-bottom: 1.5rem; box-sizing: border-box; outline: none; }
+        input[type="text"]:focus { border-color: var(--primary); }
+        button { width: 100%; padding: 15px; border: none; border-radius: 8px; background: var(--primary); color: white; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #cc0000; }
+        button:disabled { background: #555; cursor: wait; }
+        #status { margin-top: 1.5rem; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TUBEHUB</h1>
+        <p>Téléchargement MP4 Illimité</p>
+        <input type="text" id="videoUrl" placeholder="Collez votre lien ici...">
+        <button id="dlBtn" onclick="startDownload()">TÉLÉCHARGER</button>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        async function startDownload() {
+            const urlInput = document.getElementById('videoUrl');
+            const status = document.getElementById('status');
+            const btn = document.getElementById('dlBtn');
+            
+            if (!urlInput.value) return alert("Entrez un lien !");
+
+            btn.disabled = true;
+            status.style.color = "#f39c12";
+            status.innerText = "Téléchargement en cours sur le serveur... Patientez.";
+
+            try {
+                const response = await axios({
+                    url: 'http://127.0.0.1:5000/download',
+                    method: 'POST',
+                    data: { url: urlInput.value },
+                    responseType: 'blob' 
+                });
+
+                // Création du lien de téléchargement
+                const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                
+                // On récupère le nom du fichier si possible, sinon nom par défaut
+                link.setAttribute('download', `TubeHub_Video_${Date.now()}.mp4`);
+                
+                document.body.appendChild(link);
+                link.click();
+                
+                // Nettoyage
+                link.remove();
+                window.URL.revokeObjectURL(downloadUrl);
+
+                status.style.color = "#2ecc71";
+                status.innerText = "Terminé ! Regardez vos téléchargements.";
+            } catch (error) {
+                console.error(error);
+                status.style.color = "#e74c3c";
+                status.innerText = "Erreur : Lien invalide ou serveur occupé.";
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
