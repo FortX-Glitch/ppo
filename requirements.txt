@@ -3,3 +3,4 @@ flask-cors
 yt-dlp
 curl_cffi
 gunicorn
+setuptools
