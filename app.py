@@ -8,6 +8,7 @@ import uuid
 app = Flask(__name__)
 CORS(app)
 
+# Route d'accueil pour que Render marque le projet comme "Live"
 @app.route('/')
 def home():
     return "Serveur TubeHub : Operationnel", 200
@@ -23,10 +24,9 @@ def download_video():
         tmpdir = tempfile.gettempdir()
         unique_id = str(uuid.uuid4())[:8]
         
-        # CETTE CONFIGURATION EST LA CLÉ :
-        # On demande 'ext=mp4' spécifiquement pour ne pas avoir besoin de FFmpeg
+        # On force un format MP4 simple pour éviter les erreurs 500
         ydl_opts = {
-            'format': 'best[ext=mp4]/best', 
+            'format': 'best[ext=mp4]/best',
             'outtmpl': os.path.join(tmpdir, f'tubehub_{unique_id}_%(title)s.%(ext)s'),
             'noplaylist': True,
             'nocheckcertificate': True,
@@ -35,19 +35,13 @@ def download_video():
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # On récupère les infos et on télécharge
             info = ydl.extract_info(video_url, download=True)
             file_path = ydl.prepare_filename(info)
         
-        return send_file(
-            file_path, 
-            as_attachment=True, 
-            download_name=os.path.basename(file_path)
-        )
+        return send_file(file_path, as_attachment=True, download_name=os.path.basename(file_path))
     
     except Exception as e:
-        # On affiche l'erreur réelle dans les logs pour comprendre le blocage
-        print(f"ERREUR TECHNIQUE: {str(e)}")
+        print(f"ERREUR : {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
