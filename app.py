@@ -6,14 +6,13 @@ import tempfile
 import uuid
 
 app = Flask(__name__)
+# CORS est configuré pour autoriser les requêtes de ton site Netlify
 CORS(app)
 
-# --- AJOUT CRUCIAL ICI ---
-# Cette route permet à Render de voir que le serveur fonctionne
+# Route "Health Check" pour que Render valide le déploiement
 @app.route('/')
-def health_check():
-    return "Serveur TubeHub : OK", 200
-# -------------------------
+def home():
+    return "Serveur TubeHub : Operationnel", 200
 
 @app.route('/download', methods=['POST'])
 def download_video():
@@ -24,14 +23,19 @@ def download_video():
         if not video_url:
             return jsonify({"error": "URL manquante"}), 400
 
+        # Utilisation du dossier temporaire du serveur
         tmpdir = tempfile.gettempdir()
         unique_id = str(uuid.uuid4())[:8]
         
+        # Options optimisées pour éviter l'erreur 500 et le besoin de ffmpeg
         ydl_opts = {
+            # On force le MP4 déjà combiné pour éviter les erreurs de fusion
             'format': 'best[ext=mp4]/best',
             'outtmpl': os.path.join(tmpdir, f'tubehub_{unique_id}_%(title)s.%(ext)s'),
             'noplaylist': True,
             'quiet': False,
+            'no_warnings': True,
+            # Bypass Cloudflare / Anti-bot
             'impersonate': 'chrome',
             'extractor_args': {
                 'generic': ['impersonate'],
@@ -42,9 +46,11 @@ def download_video():
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # Extraction des informations et téléchargement
             info = ydl.extract_info(video_url, download=True)
             file_path = ydl.prepare_filename(info)
         
+        # Envoi du fichier au navigateur
         return send_file(
             file_path, 
             as_attachment=True, 
@@ -52,10 +58,12 @@ def download_video():
         )
     
     except Exception as e:
-        print(f"Erreur : {str(e)}")
+        # Affiche l'erreur précise dans les logs Render pour le debug
+        print(f"ERREUR SERVEUR: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    # On force le port 10000 qui est le standard chez Render
+    # Récupère le port via Render ou utilise 10000 par défaut
     port = int(os.environ.get('PORT', 10000))
+    # host='0.0.0.0' est obligatoire pour être accessible depuis Netlify
     app.run(host='0.0.0.0', port=port)
