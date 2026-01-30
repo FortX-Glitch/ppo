@@ -8,7 +8,6 @@ import uuid
 app = Flask(__name__)
 CORS(app)
 
-# Route d'accueil pour que Render marque le projet comme "Live"
 @app.route('/')
 def home():
     return "Serveur TubeHub : Operationnel", 200
@@ -24,9 +23,10 @@ def download_video():
         tmpdir = tempfile.gettempdir()
         unique_id = str(uuid.uuid4())[:8]
         
-        # On force un format MP4 simple pour éviter les erreurs 500
         ydl_opts = {
-            'format': 'best[ext=mp4]/best',
+            # 'format': '18' est le format MP4 standard (360p) qui inclut TOUJOURS l'audio.
+            # C'est le plus sûr pour éviter l'erreur 500 sur Render gratuit.
+            'format': 'best[ext=mp4][vcodec^=avc1][acodec^=mp4a]/18/best',
             'outtmpl': os.path.join(tmpdir, f'tubehub_{unique_id}_%(title)s.%(ext)s'),
             'noplaylist': True,
             'nocheckcertificate': True,
@@ -41,7 +41,8 @@ def download_video():
         return send_file(file_path, as_attachment=True, download_name=os.path.basename(file_path))
     
     except Exception as e:
-        print(f"ERREUR : {str(e)}")
+        # Affiche l'erreur exacte dans tes logs Render
+        print(f"ERREUR CRITIQUE: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
