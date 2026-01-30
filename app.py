@@ -6,12 +6,10 @@ import tempfile
 import uuid
 
 app = Flask(__name__)
-# Remplace '*' par l'URL de ton site Netlify pour plus de sécurité si tu veux
 CORS(app)
 
-# Route pour valider que le serveur est bien "Live"
 @app.route('/')
-def health_check():
+def home():
     return "Serveur TubeHub : Operationnel", 200
 
 @app.route('/download', methods=['POST'])
@@ -19,31 +17,25 @@ def download_video():
     try:
         data = request.json
         video_url = data.get('url')
-        
         if not video_url:
             return jsonify({"error": "URL manquante"}), 400
 
         tmpdir = tempfile.gettempdir()
         unique_id = str(uuid.uuid4())[:8]
         
-        # Options optimisées pour éviter le besoin de ffmpeg et contourner les blocages
+        # CETTE CONFIGURATION EST LA CLÉ :
+        # On demande 'ext=mp4' spécifiquement pour ne pas avoir besoin de FFmpeg
         ydl_opts = {
-            'format': 'best[ext=mp4]/best',
+            'format': 'best[ext=mp4]/best', 
             'outtmpl': os.path.join(tmpdir, f'tubehub_{unique_id}_%(title)s.%(ext)s'),
             'noplaylist': True,
             'nocheckcertificate': True,
-            'quiet': False,
             'impersonate': 'chrome',
-            'extractor_args': {
-                'generic': ['impersonate'],
-            },
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            }
+            'extractor_args': {'generic': ['impersonate']},
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # Extraction et téléchargement effectif
+            # On récupère les infos et on télécharge
             info = ydl.extract_info(video_url, download=True)
             file_path = ydl.prepare_filename(info)
         
@@ -54,8 +46,8 @@ def download_video():
         )
     
     except Exception as e:
-        # Affiche l'erreur détaillée dans tes logs Render
-        print(f"ERREUR SERVEUR: {str(e)}")
+        # On affiche l'erreur réelle dans les logs pour comprendre le blocage
+        print(f"ERREUR TECHNIQUE: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
